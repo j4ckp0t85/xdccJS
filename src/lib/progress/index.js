@@ -1,4 +1,4 @@
-const readline = require('readline');
+const readline = require('readline')
 /*!
  * node-progress
  * Copyright(c) 2011 TJ Holowaychuk <tj@vision-media.ca>
@@ -73,6 +73,8 @@ function ProgressBar(fmt, options) {
   this.lastDraw = ''
   this.currentRollState = 0
   this.rollStates = ['|', '/', '-', '\\', '|', '/', '-', '\\']
+  this.eta = 'infinite'
+  this.rate = 'NaN'
 }
 
 /**
@@ -83,7 +85,7 @@ function ProgressBar(fmt, options) {
  * @api public
  */
 
-ProgressBar.prototype.tick = function (len, tokens) {
+ProgressBar.prototype.tick = function (len, tokens, verboseMode) {
   if (len !== 0) len = len || 1
 
   // swap tokens
@@ -96,7 +98,7 @@ ProgressBar.prototype.tick = function (len, tokens) {
   this.curr += len
 
   // try to render
-  this.render()
+  this.render(undefined, undefined, verboseMode)
 
   // progress complete
   if (this.curr >= this.total) {
@@ -108,8 +110,8 @@ ProgressBar.prototype.tick = function (len, tokens) {
   }
 }
 
-ProgressBar.prototype.roll = function() {
-  if(this.currentRollState > this.rollStates.length-1) this.currentRollState = 0
+ProgressBar.prototype.roll = function () {
+  if (this.currentRollState > this.rollStates.length - 1) this.currentRollState = 0
   const current = this.rollStates[this.currentRollState]
   this.currentRollState++
   return current
@@ -123,11 +125,9 @@ ProgressBar.prototype.roll = function() {
  * @api public
  */
 
-ProgressBar.prototype.render = function (tokens, force) {
+ProgressBar.prototype.render = function (tokens, force, verboseMode) {
   force = force !== undefined ? force : false
   if (tokens) this.tokens = tokens
-
-  if (!this.stream.isTTY) return
 
   var now = Date.now()
   var delta = now - this.lastRender
@@ -143,17 +143,21 @@ ProgressBar.prototype.render = function (tokens, force) {
   var percent = Math.floor(ratio * 100)
   var incomplete, complete, completeLength
   var elapsed = new Date() - this.start
-  var eta = percent == 100 ? 0 : elapsed * (this.total / this.curr - 1)
-  var rate = this.curr / (elapsed / 1000)
+  var etaTime = percent == 100 ? 0 : elapsed * (this.total / this.curr - 1)
+  this.eta = this.humanETA(etaTime)
+  var rt = this.curr / (elapsed / 1000)
+  this.rate = this.humanFileSize(rt)
+
+  if (!this.stream.isTTY || verboseMode == undefined || verboseMode != true) return
 
   /* populate the bar template with percentages and timestamps */
   var str = this.fmt
     .replace(':current', this.curr)
     .replace(':total', this.total)
     .replace(':elapsed', isNaN(elapsed) ? '0.0' : (elapsed / 1000).toFixed(1))
-    .replace(':eta', this.humanETA(eta))
+    .replace(':eta', this.humanETA(etaTime))
     .replace(':percent', percent.toFixed(0) + '%')
-    .replace(':rate', this.humanFileSize(rate))
+    .replace(':rate', this.humanFileSize(rt))
     .replace(':roll', this.roll())
   /* compute the available space (non-zero) for the bar */
   var availableSpace = Math.max(0, this.stream.columns - str.replace(':bar', '').length)

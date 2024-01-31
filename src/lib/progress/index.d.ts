@@ -26,6 +26,7 @@ declare class ProgressBar {
    *   - `renderThrottle` minimum time between updates in milliseconds defaulting to 16
    *   - `callback` optional function to call when the progress bar completes
    *   - `clear` will clear the progress bar upon termination
+   *   - `eta` ETA in seconds
    *
    * Tokens:
    *   - `:bar` the progress bar itself
@@ -43,6 +44,7 @@ declare class ProgressBar {
    */
   tick(tokens?: any): void
   tick(count?: number, tokens?: any): void
+  tick(count?: number, tokens?: any, verboseMode?: boolean): void
 
   /**
    * Method to render the progress bar with optional `tokens` to place in the
@@ -88,6 +90,18 @@ declare class ProgressBar {
    * Total number of ticks to complete.
    */
   total: number
+
+  /**
+   * ETA in seconds
+   */
+
+  eta: string
+
+  /**
+   * Rate speed
+   */
+
+  rate: string
 
   /**
    * Human readable transfert
@@ -151,5 +165,15 @@ declare namespace ProgressBar {
      * Optional function to call when the progress bar completes.
      */
     callback?: Function
+
+    /**
+     * Eta in seconds
+     */
+    eta?: string
+
+    /**
+     * Rate speed
+     */
+    rate?: string
   }
 }

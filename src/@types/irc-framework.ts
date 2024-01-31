@@ -188,7 +188,10 @@ declare module 'irc-framework' {
      *    console.log(`${fileInfo.file} @ ${percentage}%`)
      * })
      */
-    on(eventType: 'downloading', cb: (fileInfo: FileInfo, received: number, percentage: number) => any): this
+    on(
+      eventType: 'downloading',
+      cb: (fileInfo: FileInfo, received: number, percentage: number, eta: string, rate: string) => any
+    ): this
     /**
      * @description Event triggered when a file is downloaded
      * @example
