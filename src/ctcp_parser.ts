@@ -9,7 +9,7 @@ import type { Job } from './interfaces/job';
 import { ParamsTimeout } from './timeouthandler';
 
 interface ResumeQueue extends FileInfo {
-  nick: string
+  nick: string;
 }
 
 export type ParamsCTCP = ParamsTimeout & {
@@ -33,7 +33,7 @@ export type ParamsCTCP = ParamsTimeout & {
    * params.path = false
    * ```
    * */
-  path: string | false
+  path: string | false;
   /**
    * Block downloads if the bot's name does not match the request
    * @example
@@ -43,8 +43,8 @@ export type ParamsCTCP = ParamsTimeout & {
    * //=> Only accept files comming from 'BOT-A'
    * ```
    */
-   botNameMatch: boolean
-}
+  botNameMatch: boolean;
+};
 export class CtcpParser extends AddJob {
   protected path: string | boolean;
 
@@ -57,7 +57,13 @@ export class CtcpParser extends AddJob {
     this.botNameMatch = params.botNameMatch;
     this.path = params.path;
     this.on('ctcp request', (resp: { [prop: string]: string }): void => {
-      const isDownloadRequest = this.checkBeforeDL(resp, this.candidates[0]);
+      let candidate;
+      if (this.candidates.length === 1) {
+        candidate = this.candidates[0];
+      } else {
+        candidate = this.candidates.filter(c => c.nick.toLowerCase() === resp.nick.toLowerCase())[0];
+      }
+      const isDownloadRequest = this.checkBeforeDL(resp, candidate);
       if (isDownloadRequest) {
         this.emit('debug', 'xdccJS:: BEFORE_TCP_OK');
         this.emit('prepareDL', isDownloadRequest);
@@ -104,21 +110,19 @@ export class CtcpParser extends AddJob {
 
   private checkBeforeDL(
     resp: { [prop: string]: string },
-    candidate: Job,
+    candidate: Job
   ): { fileInfo: FileInfo; candidate: Job } | undefined {
-    const fileInfo = this.parseCtcp(resp.message, resp.nick);
+    const parsedVals = this.parseCtcp(resp.message, resp.nick);
+    const fileInfo = parsedVals?.fileInfo;
+    const isResuming = parsedVals?.isResuming;
     if (fileInfo && this.SecurityCheck(resp.nick, candidate)) {
-      this.SetupTimeout({
-        candidate,
-        eventType: 'error',
-        message: `couldn't connect to %yellow%${fileInfo.ip}:${fileInfo.port}`,
-        padding: 6,
-        delay: this.timeout,
-        fileInfo,
-      });
+      if (isResuming) {
+        candidate.timeout.clear();
+        return { fileInfo, candidate };
+      }
       if (fileInfo.type === 'DCC SEND') {
-        const isResume = this.checkExistingFiles(fileInfo, candidate, resp);
-        if (!isResume) return { fileInfo, candidate };
+        const fileExists = this.checkExistingFiles(fileInfo, candidate, resp);
+        if (!fileExists) return { fileInfo, candidate };
       }
     }
     return undefined;
@@ -138,25 +142,16 @@ export class CtcpParser extends AddJob {
     });
   }
 
-  private checkExistingFiles(fileInfo: FileInfo, candidate: Job, resp: { [prop: string]: string })
-  : boolean {
+  private checkExistingFiles(fileInfo: FileInfo, candidate: Job, resp: { [prop: string]: string }): boolean {
     if (fs.existsSync(fileInfo.filePath) && this.path) {
-      fileInfo.position = fs.statSync(fileInfo.filePath).size - 8192;
+      fileInfo.position = fs.statSync(fileInfo.filePath).size;
       if (fileInfo.position < 0) {
         fileInfo.position = 0;
       }
-      fileInfo.length -= fileInfo.position;
+      // fileInfo.length -= fileInfo.position
       const quotedFilename = CtcpParser.fileNameWithQuotes(fileInfo.file);
-      this.ctcpRequest(resp.nick, 'DCC RESUME', quotedFilename, fileInfo.port, fileInfo.position, fileInfo.token);
+      this.ctcpRequest(resp.nick, 'DCC RESUME', quotedFilename, fileInfo.port, fileInfo.position);
       this.addToResumeQueue(fileInfo, resp.nick);
-      this.SetupTimeout({
-        candidate,
-        eventType: 'error',
-        message: `couldn't resume download of %cyan%${fileInfo.file}`,
-        padding: 6,
-        delay: this.timeout,
-        fileInfo,
-      });
       this.emit('debug', 'xdccJS:: BEFORE_TCP_REQUEST_RESUME');
       return true;
     }
@@ -204,20 +199,20 @@ export class CtcpParser extends AddJob {
     };
   }
 
-  protected parseCtcp(text: string, nick: string): FileInfo | undefined {
+  protected parseCtcp(text: string, nick: string): { fileInfo: FileInfo | undefined; isResuming: boolean } | undefined {
     const parts = CtcpParser.ctcpMatch(text);
     const type = `${parts[0]} ${parts[1]}`;
     if (type === 'DCC ACCEPT') {
       this.emit('debug', 'xdccJS:: BEFORE_TCP_RESUME_ACCEPT');
-      const resume = this.resumequeue.filter((q) => q.nick === nick);
-      this.resumequeue = this.resumequeue.filter((q) => q.nick !== nick);
+      const resume = this.resumequeue.filter(q => q.nick === nick);
+      this.resumequeue = this.resumequeue.filter(q => q.nick !== nick);
       if (resume.length) {
-        return this.fileInfoBuilder(parts, resume[0]);
+        return { fileInfo: this.fileInfoBuilder(parts, resume[0]), isResuming: true };
       }
     }
     if (type === 'DCC SEND') {
       this.emit('debug', 'xdccJS:: BEFORE_TCP_ACCEPT');
-      return this.fileInfoBuilder(parts);
+      return { fileInfo: this.fileInfoBuilder(parts), isResuming: false };
     }
     return undefined;
   }
