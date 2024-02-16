@@ -8,7 +8,7 @@ export default class Bridge extends Downloader {
     super(testedParams);
   }
 
-  static checkParams(params: Partial<ParamsDL>):ParamsDL {
+  static checkParams(params: Partial<ParamsDL>): ParamsDL {
     const testedParams = params;
 
     testedParams.nickname = testedParams.nickname || 'xdccJS';
@@ -16,6 +16,7 @@ export default class Bridge extends Downloader {
     testedParams.botNameMatch = Bridge.is({ name: 'botNameMatch', variable: params.botNameMatch, type: true });
     testedParams.chan = Bridge.chanCheck(params.chan);
     testedParams.verbose = Bridge.is({ name: 'verbose', variable: params.verbose, type: false });
+    testedParams.cliMode = testedParams.cliMode;
 
     if (testedParams.queue && !(testedParams.queue instanceof RegExp)) {
       throw Error('queue must be a RegExp');
@@ -25,7 +26,7 @@ export default class Bridge extends Downloader {
       name: 'host',
       variable: params.host,
       type: 'string',
-      condition: (typeof params.host !== 'undefined' && params.host.length > 0),
+      condition: typeof params.host !== 'undefined' && params.host.length > 0,
       conditionError: 'hostname cannot be an empty string',
     });
 
@@ -42,32 +43,37 @@ export default class Bridge extends Downloader {
       name: 'passivePort',
       variable: testedParams.passivePort,
       type: [5001],
-      condition: !testedParams.passivePort.some((number) => number < 1025 || number > 65535),
+      condition: !testedParams.passivePort.some(number => number < 1025 || number > 65535),
       conditionError: 'must be larger than 1024 and les than or equal 65536',
     });
 
     if (testedParams.tls) {
       testedParams.tls.enable = Bridge.is({ name: 'tls.enable', variable: testedParams.tls.enable, type: false });
-      testedParams.tls.rejectUnauthorized = Bridge.is({ name: 'tls.rejectUnauthorized', variable: testedParams.tls.rejectUnauthorized, type: true });
+      testedParams.tls.rejectUnauthorized = Bridge.is({
+        name: 'tls.rejectUnauthorized',
+        variable: testedParams.tls.rejectUnauthorized,
+        type: true,
+      });
     } else {
       testedParams.tls = { enable: false, rejectUnauthorized: true };
     }
 
-    testedParams.timeout = (Bridge.is({
-      name: 'timeout',
-      variable: params.timeout,
-      type: 30,
-      condition: (params.timeout || 30) > 0,
-      conditionError: 'timeout must be larger than 0',
-    })) * 1000;
+    testedParams.timeout =
+      Bridge.is({
+        name: 'timeout',
+        variable: params.timeout,
+        type: 30,
+        condition: (params.timeout || 30) > 0,
+        conditionError: 'timeout must be larger than 0',
+      }) * 1000;
 
-    testedParams.retry = (Bridge.is({
+    testedParams.retry = Bridge.is({
       name: 'timeout',
       variable: params.retry || 1,
       type: 1,
       condition: (params.retry || 1) >= 0,
       conditionError: 'retry must be larger than 0',
-    }));
+    });
 
     if (testedParams.throttle) {
       testedParams.throttle *= 1024;
@@ -81,7 +87,7 @@ export default class Bridge extends Downloader {
     }
 
     if (typeof testedParams.host !== 'string') {
-      const err = new TypeError('hostname is required\'');
+      const err = new TypeError("hostname is required'");
       err.name += ' [ERR_INVALID_ARG_TYPE]';
       throw err;
     }
@@ -117,19 +123,21 @@ export default class Bridge extends Downloader {
     };
   }
 
-  config(params: Partial<{
-    passivePort: number[],
-    throttle: number,
-    nickname: string,
-    chan: string[],
-    path: string | null,
-    botNameMatch: boolean,
-    retry: number,
-    timeout: number,
-    verbose: boolean,
-    randomizeNick: boolean,
-    queue: RegExp,
-  }>) {
+  config(
+    params: Partial<{
+      passivePort: number[];
+      throttle: number;
+      nickname: string;
+      chan: string[];
+      path: string | null;
+      botNameMatch: boolean;
+      retry: number;
+      timeout: number;
+      verbose: boolean;
+      randomizeNick: boolean;
+      queue: RegExp;
+    }>
+  ) {
     if (!params) return this.parameters;
 
     if (params.nickname || params.randomizeNick) {
@@ -152,10 +160,10 @@ export default class Bridge extends Downloader {
     }
 
     if (params.chan) {
-      this.chan.forEach((c) => this.part(c));
+      this.chan.forEach(c => this.part(c));
       this.print(`%success% parted from: [ %yellow%${this.chan.join(' - ')}%reset% ]`, 2);
       this.chan = Downloader.chanCheck(params.chan);
-      this.chan.forEach((chan) => this.join(chan));
+      this.chan.forEach(chan => this.join(chan));
       this.print(`%success% joined: [ %yellow%${this.chan.join(' - ')}%reset% ]`, 2);
     }
 
@@ -195,7 +203,7 @@ export default class Bridge extends Downloader {
         name: 'passivePort',
         variable: params.passivePort,
         type: [5001],
-        condition: !params.passivePort.some((number) => number < 1025 || number > 65535),
+        condition: !params.passivePort.some(number => number < 1025 || number > 65535),
         conditionError: 'must be larger than 1024 and les than or equal 65536',
       });
     }

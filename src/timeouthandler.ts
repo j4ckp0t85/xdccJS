@@ -18,27 +18,32 @@ export type ParamsTimeout = ParamsIRC & {
    * xdccJS.download('xdcc|bot', '20, 25')
    * // if download of pack '20' fails it will retry twice before skipping to pack '25'
    */
-  retry: number
+  retry: number;
   /**
    * Queue Regex
    */
-  queue?: RegExp
-}
+  queue?: RegExp;
+
+  /**
+   * In cli mode we allow only 1 active transfer
+   */
+  cliMode: boolean;
+};
 interface TimeoutSetup {
-  candidate: Job
-  eventType: 'error' | 'cancel'
-  message: string
-  padding?: number
-  executeLater?: () => void
+  candidate: Job;
+  eventType: 'error' | 'cancel';
+  message: string;
+  padding?: number;
+  executeLater?: () => void;
   disconnectAfter?: {
-    stream: fs.WriteStream | PassThrough
-    socket?: net.Socket
-    server?: net.Server
-    pick?: number | undefined
-    bar?: ProgressBar
-  }
-  delay: number
-  fileInfo?: FileInfo
+    stream: fs.WriteStream | PassThrough;
+    socket?: net.Socket;
+    server?: net.Server;
+    pick?: number | undefined;
+    bar?: ProgressBar;
+  };
+  delay: number;
+  fileInfo?: FileInfo;
 }
 export class TimeOut extends Connect {
   protected portInUse: number[];
@@ -71,18 +76,11 @@ export class TimeOut extends Connect {
   }
 
   protected DisableTimeOutOnQueue(job: Job, regex: RegExp) {
-    const listener = (ev: {
-      nick: string;
-      type: string;
-      message: string;
-    }) => {
+    const listener = (ev: { nick: string; type: string; message: string }) => {
       const regexp = new RegExp(regex);
       if (regexp.test(ev.message)) {
         this.emit('debug', 'xdccJSS:: DOWNLOAD_QUEUED');
-        this.print(
-          `%info% You have been %cyan%queued%reset% by %yellow%${job.nick}%reset%, please wait.`,
-          6,
-        );
+        this.print(`%info% You have been %cyan%queued%reset% by %yellow%${job.nick}%reset%, please wait.`, 6);
         job.timeout.clear();
         job.removeListener('message', listener);
       }
@@ -98,7 +96,7 @@ export class TimeOut extends Connect {
     if (candidate.timeout.server && candidate.timeout.pick) {
       const { pick } = candidate.timeout;
       candidate.timeout.server.close(() => {
-        this.portInUse = this.portInUse.filter((p) => p !== pick);
+        this.portInUse = this.portInUse.filter(p => p !== pick);
       });
     }
     return this;

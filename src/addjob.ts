@@ -12,9 +12,11 @@ export type Packets = string | string[] | number | number[];
 
 export default class AddJob extends TimeOut {
   candidates: Job[];
+  protected cliMode: boolean;
 
   constructor(params: ParamsTimeout) {
     super(params);
+    this.cliMode = params.cliMode;
     this.candidates = [];
     this.onRequest();
     this.onNext();
@@ -94,7 +96,10 @@ export default class AddJob extends TimeOut {
       candidate.queue = tmp.sort((a, b) => a - b);
       if (opts) candidate.opts = { ...candidate.opts, ...opts };
     }
-    if (candidate.now === 0) {
+    const canProcessCandidate = !!this.cliMode
+      ? this.candidates.length === 1 && candidate.now === 0
+      : candidate.now === 0;
+    if (canProcessCandidate) {
       this.passMessage(candidate);
       this.emit('request', { target, packets: candidate.queue });
     }
